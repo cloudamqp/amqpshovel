@@ -1,3 +1,4 @@
+require "ini"
 require "option_parser"
 require "amqp-client"
 
@@ -123,13 +124,13 @@ class AMQPShovel
       parser.on("--src-exchange=NAME", "Exchange to consume from") { |v| @src_exchange = v }
       parser.on("--src-binding-key=KEY", "Binding key to use when consuming from an exchange") { |v| @src_binding_key = v }
       parser.on("--src-queue=NAME", "Queue to consume from (must exist, overrides --src-exchange)") { |v| @src_queue = v }
-      parser.on("--src-prefetch=LIMIT", "Prefetch limit") { |v| @prefetch_count = v.to_i }
-      parser.on("--ack-mode=MODE", "Ack mode, noack, on-publish or on-confirm") { |v| @ack_mode = AckMode.parse(v) }
-
+      parser.on("--prefetch=LIMIT", "Prefetch limit (default #{@prefetch_count})") { |v| @prefetch_count = v.to_i }
+      parser.on("--ack-mode=MODE", "Ack mode, noack, on-publish or on-confirm (default #{@ack_mode})") { |v| @ack_mode = AckMode.parse(v) }
       parser.on("--dst-uri=URI", "Destination URI") { |v| @dst_uri = v }
       parser.on("--dst-exchange=NAME", "Publish to exchange") { |v| @dst_exchange = v }
       parser.on("--dst-routing-key=KEY", "Optionally override the routing key when shovling to an exchange") { |v| @dst_routing_key = v }
       parser.on("--dst-queue=NAME", "Publish to a queue (overrides --dst-exchange)") { |v| @dst_exchange = ""; @dst_routing_key = v }
+      parser.on("--config=FILE", "Configure source/destination with a INI style file") { |v| parse_ini(v) }
 
       parser.on("-h", "--help", "Show this help") do
         puts parser
@@ -139,6 +140,38 @@ class AMQPShovel
         STDERR.puts "ERROR: #{flag} is not a valid option."
         STDERR.puts parser
         exit 1
+      end
+    end
+  rescue ex
+    abort ex.message
+  end
+
+  def parse_ini(filename) : Nil
+    File.open(filename) do |f|
+      INI.parse(f).each do |section, config|
+        case section
+        when "source"
+          config.each do |k, v|
+            case k
+            when "uri"         then @src_uri = v
+            when "queue"       then @src_queue = v
+            when "exchange"    then @src_exchange = v
+            when "binding-key" then @src_binding_key = v
+            when "prefetch"    then @prefetch_count = v.to_i
+            when "ack-mode"    then @ack_mode = AckMode.parse(v)
+            end
+          end
+        when "destination"
+          config.each do |k, v|
+            case k
+            when "uri"         then @dst_uri = v
+            when "exchange"    then @dst_exchange = v
+            when "routing-key" then @dst_routing_key = v
+            when "queue"       then @dst_exchange = ""; @dst_routing_key = v
+            when "ack-mode"    then @ack_mode = AckMode.parse(v)
+            end
+          end
+        end
       end
     end
   end
