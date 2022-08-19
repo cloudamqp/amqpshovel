@@ -25,6 +25,19 @@ class AMQPShovel
   end
 
   def start
+    puts "AMQPShovel #{VERSION}"
+    puts "Source URI: #{URI.parse(@src_uri).tap(&.password = ".")}"
+    if @src_queue.empty?
+      puts "Source exchange: #{@src_exchange}"
+      puts "Source binding key: #{@src_binding_key}"
+    else
+      puts "Source queue: #{@src_queue}"
+    end
+    puts "Destination URI: #{URI.parse(@dst_uri).tap(&.password = "")}"
+    puts "Destination exchange: #{@dst_exchange}" if @dst_exchange
+    puts "Destination routing_key key: #{@dst_routing_key}" if @dst_routing_key
+    puts "Prefetch: #{@prefetch_count}"
+    puts "Ack-mode: #{@ack_mode}"
     spawn publish_loop
     spawn consume_loop
   end
@@ -49,7 +62,7 @@ class AMQPShovel
         ack_loop(ch)
       end
     rescue ex : AMQP::Client::Error
-      puts "consumer: ", ex.inspect
+      puts "consumer: #{ex.message}"
       sleep 5
     end
   end
@@ -98,7 +111,7 @@ class AMQPShovel
         end
       end
     rescue ex : AMQP::Client::Error
-      puts "publisher: ", ex.inspect
+      puts "publisher: #{ex.message}"
       sleep 5
     end
   end
