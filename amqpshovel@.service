@@ -1,0 +1,16 @@
+[Unit]
+Description=AMQPShovel %i
+Documentation=https://github.com/cloudamqp/amqpshovel
+Requires=network.target
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+ExecStart=/usr/bin/amqpshovel --config /etc/amqpshovel/%i.ini
+Restart=on-failure
+RestartSec=5
+Type=notify
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target
